@@ -20,27 +20,7 @@ pipeline {
     }
     
     stages {
-        stage('Pre-flight Check') {
-            steps {
-                script {
-                    if (!params.CONFIRM_DELETION) {
-                        error("❌ DELETION NOT CONFIRMED: You must check 'CONFIRM_DELETION' to proceed")
-                    }
-                    
-                    echo """
-                    🚨 VPC DELETION PIPELINE (Windows) 🚨
-                    
-                    VPC: testvpc1
-                    Region: us-east-1
-                    Build: ${env.BUILD_NUMBER}
-                    Agent: Windows
-                    
-                    ⚠️  THIS WILL DELETE ALL VPC RESOURCES ⚠️
-                    """
-                }
-            }
-        }
-        
+                
         stage('Checkout') {
             steps {
                 echo "=== Pulling Terraform code from Git ==="
