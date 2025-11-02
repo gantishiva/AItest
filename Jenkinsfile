@@ -2,11 +2,7 @@ pipeline {
     agent any
     
     parameters {
-        booleanParam(
-            name: 'CONFIRM_DELETION',
-            defaultValue: false,
-            description: 'Confirm that you want to DELETE the VPC testvpc1 and all resources'
-        )
+        
         booleanParam(
             name: 'AUTO_APPROVE',
             defaultValue: false,
@@ -22,25 +18,7 @@ pipeline {
     }
     
     stages {
-        stage('Pre-flight Check') {
-            steps {
-                script {
-                    if (!params.CONFIRM_DELETION) {
-                        error("❌ DELETION NOT CONFIRMED: You must check 'CONFIRM_DELETION' to proceed")
-                    }
-                    
-                    echo """
-                    🚨 VPC DELETION PIPELINE 🚨
-                    
-                    VPC: testvpc1
-                    Region: us-east-1
-                    Build: ${env.BUILD_NUMBER}
-                    
-                    ⚠️  THIS WILL DELETE ALL VPC RESOURCES ⚠️
-                    """
-                }
-            }
-        }
+        
         
         stage('Checkout') {
             steps {
