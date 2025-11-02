@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'windows'
+    }
     
     parameters {
         
@@ -14,21 +16,64 @@ pipeline {
         AWS_DEFAULT_REGION = 'us-east-1'
         TF_IN_AUTOMATION = 'true'
         TF_INPUT = '0'
-        TERRAFORM_DIR = '.'
+        TF_CLI_ARGS = '-no-color'
     }
     
     stages {
-        
+        stage('Pre-flight Check') {
+            steps {
+                script {
+                    if (!params.CONFIRM_DELETION) {
+                        error("❌ DELETION NOT CONFIRMED: You must check 'CONFIRM_DELETION' to proceed")
+                    }
+                    
+                    echo """
+                    🚨 VPC DELETION PIPELINE (Windows) 🚨
+                    
+                    VPC: testvpc1
+                    Region: us-east-1
+                    Build: ${env.BUILD_NUMBER}
+                    Agent: Windows
+                    
+                    ⚠️  THIS WILL DELETE ALL VPC RESOURCES ⚠️
+                    """
+                }
+            }
+        }
         
         stage('Checkout') {
             steps {
                 echo "=== Pulling Terraform code from Git ==="
                 checkout scm
                 
-                sh '''
-                    echo "Repository: ${GIT_URL}"
-                    echo "Branch: ${GIT_BRANCH}"
-                    echo "Commit: $(git rev-parse HEAD)"
+                bat '''
+                    echo Repository: %GIT_URL%
+                    echo Branch: %GIT_BRANCH%
+                    echo Build Number: %BUILD_NUMBER%
+                    echo Workspace: %WORKSPACE%
+                    
+                    echo === Git Information ===
+                    git --version
+                    git log --oneline -3
+                    git rev-parse HEAD
+                '''
+            }
+        }
+        
+        stage('Environment Setup') {
+            steps {
+                bat '''
+                    echo === Environment Setup ===
+                    echo AWS Region: %AWS_DEFAULT_REGION%
+                    echo Terraform Automation: %TF_IN_AUTOMATION%
+                    echo Current Directory: %CD%
+                    
+                    echo === Tool Versions ===
+                    terraform version || echo Terraform not found
+                    aws --version || echo AWS CLI not found
+                    
+                    echo === Workspace Contents ===
+                    dir
                 '''
             }
         }
@@ -43,10 +88,13 @@ pipeline {
                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]
                 ]) {
-                    sh '''
-                        echo "=== Initializing Terraform ==="
-                        terraform init
+                    bat '''
+                        echo === Initializing Terraform ===
+                        terraform init -input=false
+                        
+                        echo === Terraform Configuration ===
                         terraform version
+                        terraform providers
                     '''
                 }
             }
@@ -62,12 +110,15 @@ pipeline {
                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]
                 ]) {
-                    sh '''
-                        echo "=== Current VPC Resources ==="
-                        terraform output resources_to_delete || echo "No current state found"
+                    bat '''
+                        echo === Current VPC Resources ===
+                        terraform output resources_to_delete || echo No current state found
                         
-                        echo "=== Checking VPC in AWS ==="
-                        aws ec2 describe-vpcs --filters "Name=tag:Name,Values=testvpc1" --region ${AWS_DEFAULT_REGION} --output table || echo "VPC not found"
+                        echo === Checking VPC in AWS ===
+                        aws ec2 describe-vpcs --filters "Name=tag:Name,Values=testvpc1" --region %AWS_DEFAULT_REGION% --output table || echo VPC not found
+                        
+                        echo === Current Terraform State ===
+                        terraform show || echo No state file found
                     '''
                 }
             }
@@ -83,20 +134,70 @@ pipeline {
                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]
                 ]) {
-                    sh '''
-                        echo "=== Creating Destroy Plan ==="
-                        terraform plan -destroy -out=destroy.tfplan
+                    bat '''
+                        echo === Creating Destroy Plan ===
+                        terraform plan -destroy -input=false -out=destroy-%BUILD_NUMBER%.tfplan
                         
-                        echo "=== Destroy Plan Details ==="
-                        terraform show destroy.tfplan
+                        echo === Destroy Plan Details ===
+                        terraform show -no-color destroy-%BUILD_NUMBER%.tfplan > destroy-plan-%BUILD_NUMBER%.txt
+                        type destroy-plan-%BUILD_NUMBER%.txt
                     '''
                     
                     // Archive the destroy plan
-                    archiveArtifacts artifacts: 'destroy.tfplan', fingerprint: true
+                    archiveArtifacts artifacts: "destroy-${env.BUILD_NUMBER}.tfplan, destroy-plan-${env.BUILD_NUMBER}.txt", fingerprint: true
                 }
             }
         }
         
+        stage('Manual Approval') {
+            when {
+                not { params.AUTO_APPROVE }
+            }
+            steps {
+                script {
+                    // Read the destroy plan for review
+                    def planFile = "destroy-plan-${env.BUILD_NUMBER}.txt"
+                    def planContent = ""
+                    
+                    try {
+                        planContent = readFile(planFile).take(2000) // First 2000 characters
+                    } catch (Exception e) {
+                        planContent = "Plan file not found or could not be read"
+                    }
+                    
+                    def approvalMessage = """
+🚨 FINAL CONFIRMATION REQUIRED 🚨
+
+You are about to PERMANENTLY DELETE:
+
+VPC: testvpc1 (10.0.0.0/17)
+- Public Subnet (10.0.1.0/24)
+- Private Subnet (10.0.2.0/24)
+- Internet Gateway
+- Route Tables
+- All associations
+
+Build: ${env.BUILD_NUMBER}
+Region: us-east-1
+
+⚠️  THIS CANNOT BE UNDONE! ⚠️
+
+Please review the destroy plan before approving.
+"""
+                    
+                    input message: approvalMessage,
+                          ok: 'YES, DELETE VPC',
+                          parameters: [
+                              text(name: 'DESTROY_PLAN', 
+                                   defaultValue: planContent, 
+                                   description: 'Destroy Plan Preview')
+                          ],
+                          submitterParameter: 'APPROVER'
+                    
+                    echo "✅ Deletion approved by: ${env.APPROVER}"
+                }
+            }
+        }
         
         stage('Apply Terraform Destroy') {
             steps {
@@ -110,15 +211,17 @@ pipeline {
                 ]) {
                     script {
                         def applyCommand = params.AUTO_APPROVE ? 
-                            "terraform apply -auto-approve destroy.tfplan" :
-                            "terraform apply destroy.tfplan"
+                            "terraform apply -input=false -auto-approve destroy-${env.BUILD_NUMBER}.tfplan" :
+                            "terraform apply -input=false destroy-${env.BUILD_NUMBER}.tfplan"
                         
-                        sh """
-                            echo "=== Executing VPC Deletion ==="
-                            echo "Command: ${applyCommand}"
+                        bat """
+                            echo === Executing VPC Deletion ===
+                            echo Command: ${applyCommand}
+                            echo Timestamp: %DATE% %TIME%
                             ${applyCommand}
                             
-                            echo "=== VPC Deletion Completed ==="
+                            echo === VPC Deletion Completed ===
+                            echo Timestamp: %DATE% %TIME%
                         """
                     }
                 }
@@ -135,62 +238,123 @@ pipeline {
                         secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                     ]
                 ]) {
-                    sh '''
-                        echo "=== Verifying VPC Deletion ==="
+                    bat '''
+                        echo === Verifying VPC Deletion ===
                         
-                        # Check if VPC still exists
-                        VPC_EXISTS=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=testvpc1" --region ${AWS_DEFAULT_REGION} --query 'Vpcs[0].VpcId' --output text 2>/dev/null)
+                        echo Checking if VPC testvpc1 still exists...
+                        for /f "delims=" %%i in ('aws ec2 describe-vpcs --filters "Name=tag:Name,Values=testvpc1" --region %AWS_DEFAULT_REGION% --query "Vpcs[0].VpcId" --output text 2^>nul') do set VPC_EXISTS=%%i
                         
-                        if [ "$VPC_EXISTS" = "None" ] || [ -z "$VPC_EXISTS" ]; then
-                            echo "✅ VPC testvpc1 successfully deleted"
-                        else
-                            echo "❌ VPC still exists: $VPC_EXISTS"
-                            exit 1
-                        fi
+                        if "%VPC_EXISTS%"=="None" (
+                            echo ✅ VPC testvpc1 successfully deleted
+                        ) else if "%VPC_EXISTS%"=="" (
+                            echo ✅ VPC testvpc1 successfully deleted
+                        ) else (
+                            echo ❌ VPC still exists: %VPC_EXISTS%
+                            exit /b 1
+                        )
                         
-                        # Show terraform state (should be empty)
-                        echo "=== Final Terraform State ==="
-                        terraform show || echo "No resources in state (expected after destroy)"
+                        echo === Final Terraform State ===
+                        terraform show || echo No resources in state ^(expected after destroy^)
+                        
+                        echo === Verification Complete ===
                     '''
                 }
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                bat '''
+                    echo === Cleaning up temporary files ===
+                    if exist destroy-*.tfplan del /f /q destroy-*.tfplan
+                    if exist destroy-plan-*.txt del /f /q destroy-plan-*.txt
+                    if exist .terraform\\terraform.tfstate del /f /q .terraform\\terraform.tfstate
+                    echo Cleanup completed
+                '''
             }
         }
     }
     
     post {
         always {
-            echo "=== Pipeline Summary ==="
-            echo "VPC: testvpc1"
-            echo "Build: ${env.BUILD_NUMBER}"
-            echo "Duration: ${currentBuild.durationString}"
-            echo "Result: ${currentBuild.currentResult}"
+            script {
+                bat '''
+                    echo === Pipeline Summary ===
+                    echo VPC: testvpc1
+                    echo Build: %BUILD_NUMBER%
+                    echo Agent: Windows
+                    echo Timestamp: %DATE% %TIME%
+                '''
+                
+                echo "Duration: ${currentBuild.durationString}"
+                echo "Result: ${currentBuild.currentResult}"
+            }
             
             // Archive terraform state files
-            archiveArtifacts artifacts: 'terraform.tfstate*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'terraform.tfstate*', allowEmptyArchive: true, fingerprint: true
         }
         
         success {
-            echo """
-            ✅ VPC DELETION SUCCESSFUL!
-            
-            VPC testvpc1 and all associated resources have been permanently deleted.
-            Build: ${env.BUILD_NUMBER}
-            Duration: ${currentBuild.durationString}
-            """
+            script {
+                def successMessage = """
+✅ VPC DELETION SUCCESSFUL!
+
+VPC: testvpc1
+Build: ${env.BUILD_NUMBER}
+Duration: ${currentBuild.durationString}
+Agent: Windows
+Completed: ${new Date()}
+
+All VPC resources have been permanently deleted:
+- VPC (10.0.0.0/17)
+- Public Subnet (10.0.1.0/24)
+- Private Subnet (10.0.2.0/24)
+- Internet Gateway
+- Route Tables
+- All associations
+"""
+                
+                echo successMessage
+                
+                // Send notification (configure as needed)
+                // emailext (
+                //     subject: "✅ VPC Deletion Success - testvpc1",
+                //     body: successMessage,
+                //     to: "${env.CHANGE_AUTHOR_EMAIL}"
+                // )
+            }
         }
         
         failure {
-            echo """
-            ❌ VPC DELETION FAILED!
-            
-            The deletion process encountered errors.
-            Some resources may still exist and require manual cleanup.
-            Build: ${env.BUILD_NUMBER}
-            """
+            script {
+                def failureMessage = """
+❌ VPC DELETION FAILED!
+
+VPC: testvpc1
+Build: ${env.BUILD_NUMBER}
+Duration: ${currentBuild.durationString}
+Agent: Windows
+Failed: ${new Date()}
+
+The deletion process encountered errors.
+Some resources may still exist and require manual cleanup.
+
+Please check the build logs for details.
+"""
+                
+                echo failureMessage
+                
+                // Send notification (configure as needed)
+                // emailext (
+                //     subject: "❌ VPC Deletion Failed - testvpc1",
+                //     body: failureMessage,
+                //     to: "${env.CHANGE_AUTHOR_EMAIL}"
+                // )
+            }
         }
         
         cleanup {
-            // Clean up workspace
+            // Clean workspace
             cleanWs()
         }
     }
