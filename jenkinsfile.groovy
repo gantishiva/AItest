@@ -149,56 +149,7 @@ pipeline {
             }
         }
         
-        stage('Manual Approval') {
-            when {
-                not { params.AUTO_APPROVE }
-            }
-            steps {
-                script {
-                    // Read the destroy plan for review
-                    def planFile = "destroy-plan-${env.BUILD_NUMBER}.txt"
-                    def planContent = ""
-                    
-                    try {
-                        planContent = readFile(planFile).take(2000) // First 2000 characters
-                    } catch (Exception e) {
-                        planContent = "Plan file not found or could not be read"
-                    }
-                    
-                    def approvalMessage = """
-🚨 FINAL CONFIRMATION REQUIRED 🚨
-
-You are about to PERMANENTLY DELETE:
-
-VPC: testvpc1 (10.0.0.0/17)
-- Public Subnet (10.0.1.0/24)
-- Private Subnet (10.0.2.0/24)
-- Internet Gateway
-- Route Tables
-- All associations
-
-Build: ${env.BUILD_NUMBER}
-Region: us-east-1
-
-⚠️  THIS CANNOT BE UNDONE! ⚠️
-
-Please review the destroy plan before approving.
-"""
-                    
-                    input message: approvalMessage,
-                          ok: 'YES, DELETE VPC',
-                          parameters: [
-                              text(name: 'DESTROY_PLAN', 
-                                   defaultValue: planContent, 
-                                   description: 'Destroy Plan Preview')
-                          ],
-                          submitterParameter: 'APPROVER'
-                    
-                    echo "✅ Deletion approved by: ${env.APPROVER}"
-                }
-            }
-        }
-        
+                
         stage('Apply Terraform Destroy') {
             steps {
                 withCredentials([
