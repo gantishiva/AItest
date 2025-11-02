@@ -119,37 +119,6 @@ pipeline {
             }
         }
         
-        stage('Manual Approval') {
-            when {
-                not { params.AUTO_APPROVE }
-            }
-            steps {
-                script {
-                    def approvalMessage = """
-🚨 FINAL CONFIRMATION REQUIRED 🚨
-
-You are about to PERMANENTLY DELETE:
-
-VPC: testvpc1
-- Public Subnet (10.0.1.0/24)
-- Private Subnet (10.0.2.0/24)
-- Internet Gateway
-- Route Tables
-- All associations
-
-⚠️  THIS CANNOT BE UNDONE! ⚠️
-
-Are you absolutely sure?
-"""
-                    
-                    input message: approvalMessage,
-                          ok: 'YES, DELETE VPC',
-                          submitterParameter: 'APPROVER'
-                    
-                    echo "✅ Deletion approved by: ${env.APPROVER}"
-                }
-            }
-        }
         
         stage('Apply Terraform Destroy') {
             steps {
