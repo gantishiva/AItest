@@ -13,7 +13,7 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# VPC with CIDR 10.0.0.0/17
+# VPC - will be destroyed
 resource "aws_vpc" "testvpc1" {
   cidr_block           = "10.0.0.0/17"
   enable_dns_hostnames = true
@@ -24,7 +24,7 @@ resource "aws_vpc" "testvpc1" {
   }
 }
 
-# Create Internet Gateway
+# Internet Gateway - will be destroyed
 resource "aws_internet_gateway" "testvpc1_igw" {
   vpc_id = aws_vpc.testvpc1.id
 
@@ -38,7 +38,7 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Existing public subnet
+# Public subnet - will be destroyed
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.testvpc1.id
   cidr_block              = "10.0.1.0/24"
@@ -51,10 +51,10 @@ resource "aws_subnet" "public_subnet" {
   }
 }
 
-# NEW: Private subnet
+# Private subnet - will be destroyed
 resource "aws_subnet" "private_subnet" {
   vpc_id                  = aws_vpc.testvpc1.id
-  cidr_block              = "10.0.2.0/24" # Corrected CIDR range
+  cidr_block              = "10.0.2.0/24"
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = false
 
@@ -64,7 +64,7 @@ resource "aws_subnet" "private_subnet" {
   }
 }
 
-# Public route table (existing)
+# Public route table - will be destroyed
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.testvpc1.id
 
@@ -78,7 +78,7 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-# NEW: Private route table
+# Private route table - will be destroyed
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.testvpc1.id
 
@@ -87,10 +87,13 @@ resource "aws_route_table" "private_rt" {
   }
 }
 
-# Associate public subnet with public route table (existing)
+# Route table associations - will be destroyed
 resource "aws_route_table_association" "public_rta" {
   subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public_rt.id
 }
 
-# NEW: Associate
+resource "aws_route_table_association" "private_rta" {
+  subnet_id      = aws_subnet.private_subnet.id
+  route_table_id = aws_route_table.private_rt.id
+}
