@@ -13,25 +13,23 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Create VPC
-resource "aws_vpc" "my_dev_vpc" {
-  cidr_block           = "10.0.0.0/16"
+# VPC with CIDR 10.0.0.0/17
+resource "aws_vpc" "testvpc1" {
+  cidr_block           = "10.0.0.0/17"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
   tags = {
-    Name        = "my-dev-vpc"
-    Environment = "development"
-    ManagedBy   = "Terraform"
+    Name = "testvpc1"
   }
 }
 
 # Create Internet Gateway
-resource "aws_internet_gateway" "my_dev_igw" {
-  vpc_id = aws_vpc.my_dev_vpc.id
+resource "aws_internet_gateway" "testvpc1_igw" {
+  vpc_id = aws_vpc.testvpc1.id
 
   tags = {
-    Name = "my-dev-vpc-igw"
+    Name = "testvpc1-igw"
   }
 }
 
@@ -40,54 +38,59 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Create first public subnet
-resource "aws_subnet" "public_subnet_1" {
-  vpc_id                  = aws_vpc.my_dev_vpc.id
+# Existing public subnet
+resource "aws_subnet" "public_subnet" {
+  vpc_id                  = aws_vpc.testvpc1.id
   cidr_block              = "10.0.1.0/24"
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "my-dev-vpc-public-subnet-1"
+    Name = "testvpc1-public-subnet"
     Type = "Public"
   }
 }
 
-# Create second public subnet
-resource "aws_subnet" "public_subnet_2" {
-  vpc_id                  = aws_vpc.my_dev_vpc.id
-  cidr_block              = "10.0.2.0/24"
+# NEW: Private subnet
+resource "aws_subnet" "private_subnet" {
+  vpc_id                  = aws_vpc.testvpc1.id
+  cidr_block              = "10.0.2.0/24" # Corrected CIDR range
   availability_zone       = data.aws_availability_zones.available.names[1]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = {
-    Name = "my-dev-vpc-public-subnet-2"
-    Type = "Public"
+    Name = "testvpc1-private-subnet"
+    Type = "Private"
   }
 }
 
-# Create route table for public subnets
+# Public route table (existing)
 resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.my_dev_vpc.id
+  vpc_id = aws_vpc.testvpc1.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.my_dev_igw.id
+    gateway_id = aws_internet_gateway.testvpc1_igw.id
   }
 
   tags = {
-    Name = "my-dev-vpc-public-rt"
+    Name = "testvpc1-public-rt"
   }
 }
 
-# Associate first public subnet with public route table
-resource "aws_route_table_association" "public_rta_1" {
-  subnet_id      = aws_subnet.public_subnet_1.id
+# NEW: Private route table
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.testvpc1.id
+
+  tags = {
+    Name = "testvpc1-private-rt"
+  }
+}
+
+# Associate public subnet with public route table (existing)
+resource "aws_route_table_association" "public_rta" {
+  subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public_rt.id
 }
 
-# Associate second public subnet with public route table
-resource "aws_route_table_association" "public_rta_2" {
-  subnet_id      = aws_subnet.public_subnet_2.id
-  route_table_id = aws_route_table.public_rt.id
-}
+# NEW: Associate

@@ -1,7 +1,7 @@
 {
   "version": 4,
   "terraform_version": "1.9.7",
-  "serial": 19,
+  "serial": 9,
   "lineage": "0518c933-37bb-5539-522c-61571dbc849f",
   "outputs": {},
   "resources": [
@@ -47,35 +47,6 @@
     },
     {
       "mode": "managed",
-      "type": "aws_internet_gateway",
-      "name": "testvpc1_igw",
-      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
-      "instances": [
-        {
-          "schema_version": 0,
-          "attributes": {
-            "arn": "arn:aws:ec2:us-east-1:575108956505:internet-gateway/igw-08a3c1047ea1fa4ff",
-            "id": "igw-08a3c1047ea1fa4ff",
-            "owner_id": "575108956505",
-            "tags": {
-              "Name": "testvpc1-igw"
-            },
-            "tags_all": {
-              "Name": "testvpc1-igw"
-            },
-            "timeouts": null,
-            "vpc_id": "vpc-0d25956921df0e2e0"
-          },
-          "sensitive_attributes": [],
-          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxMjAwMDAwMDAwMDAwLCJkZWxldGUiOjEyMDAwMDAwMDAwMDAsInVwZGF0ZSI6MTIwMDAwMDAwMDAwMH19",
-          "dependencies": [
-            "aws_vpc.testvpc1"
-          ]
-        }
-      ]
-    },
-    {
-      "mode": "managed",
       "type": "aws_route_table",
       "name": "public_rt",
       "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
@@ -83,27 +54,11 @@
         {
           "schema_version": 0,
           "attributes": {
-            "arn": "arn:aws:ec2:us-east-1:575108956505:route-table/rtb-0ce0e99f035172747",
-            "id": "rtb-0ce0e99f035172747",
+            "arn": "arn:aws:ec2:us-east-1:575108956505:route-table/rtb-0e36d7b6e9e6ef5f6",
+            "id": "rtb-0e36d7b6e9e6ef5f6",
             "owner_id": "575108956505",
             "propagating_vgws": [],
-            "route": [
-              {
-                "carrier_gateway_id": "",
-                "cidr_block": "0.0.0.0/0",
-                "core_network_arn": "",
-                "destination_prefix_list_id": "",
-                "egress_only_gateway_id": "",
-                "gateway_id": "igw-08a3c1047ea1fa4ff",
-                "ipv6_cidr_block": "",
-                "local_gateway_id": "",
-                "nat_gateway_id": "",
-                "network_interface_id": "",
-                "transit_gateway_id": "",
-                "vpc_endpoint_id": "",
-                "vpc_peering_connection_id": ""
-              }
-            ],
+            "route": [],
             "tags": {
               "Name": "testvpc1-public-rt"
             },
@@ -111,12 +66,11 @@
               "Name": "testvpc1-public-rt"
             },
             "timeouts": null,
-            "vpc_id": "vpc-0d25956921df0e2e0"
+            "vpc_id": "vpc-01abcc6074471e6de"
           },
           "sensitive_attributes": [],
           "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
           "dependencies": [
-            "aws_internet_gateway.testvpc1_igw",
             "aws_vpc.testvpc1"
           ]
         }
@@ -132,15 +86,14 @@
           "schema_version": 0,
           "attributes": {
             "gateway_id": "",
-            "id": "rtbassoc-02e32ec33f9eb7faf",
-            "route_table_id": "rtb-0ce0e99f035172747",
-            "subnet_id": "subnet-0cc44a4ddaad20b17",
+            "id": "rtbassoc-08ede1eed0b5f7e11",
+            "route_table_id": "rtb-0e36d7b6e9e6ef5f6",
+            "subnet_id": "subnet-01733b5199e5827c0",
             "timeouts": null
           },
           "sensitive_attributes": [],
           "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjozMDAwMDAwMDAwMDAsImRlbGV0ZSI6MzAwMDAwMDAwMDAwLCJ1cGRhdGUiOjEyMDAwMDAwMDAwMH19",
           "dependencies": [
-            "aws_internet_gateway.testvpc1_igw",
             "aws_route_table.public_rt",
             "aws_subnet.public_subnet",
             "aws_vpc.testvpc1",
@@ -158,7 +111,7 @@
         {
           "schema_version": 1,
           "attributes": {
-            "arn": "arn:aws:ec2:us-east-1:575108956505:subnet/subnet-0cc44a4ddaad20b17",
+            "arn": "arn:aws:ec2:us-east-1:575108956505:subnet/subnet-01733b5199e5827c0",
             "assign_ipv6_address_on_creation": false,
             "availability_zone": "us-east-1a",
             "availability_zone_id": "use1-az2",
@@ -168,7 +121,7 @@
             "enable_lni_at_device_index": 0,
             "enable_resource_name_dns_a_record_on_launch": false,
             "enable_resource_name_dns_aaaa_record_on_launch": false,
-            "id": "subnet-0cc44a4ddaad20b17",
+            "id": "subnet-01733b5199e5827c0",
             "ipv6_cidr_block": "",
             "ipv6_cidr_block_association_id": "",
             "ipv6_native": false,
@@ -186,7 +139,7 @@
               "Type": "Public"
             },
             "timeouts": null,
-            "vpc_id": "vpc-0d25956921df0e2e0"
+            "vpc_id": "vpc-01abcc6074471e6de"
           },
           "sensitive_attributes": [],
           "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo2MDAwMDAwMDAwMDAsImRlbGV0ZSI6MTIwMDAwMDAwMDAwMH0sInNjaGVtYV92ZXJzaW9uIjoiMSJ9",
@@ -206,17 +159,17 @@
         {
           "schema_version": 1,
           "attributes": {
-            "arn": "arn:aws:ec2:us-east-1:575108956505:vpc/vpc-0d25956921df0e2e0",
+            "arn": "arn:aws:ec2:us-east-1:575108956505:vpc/vpc-01abcc6074471e6de",
             "assign_generated_ipv6_cidr_block": false,
-            "cidr_block": "10.0.0.0/17",
-            "default_network_acl_id": "acl-0f97e77572f732b32",
-            "default_route_table_id": "rtb-026317119d1d569b0",
-            "default_security_group_id": "sg-0bc64052e96ee2dfd",
+            "cidr_block": "10.0.0.0/16",
+            "default_network_acl_id": "acl-09152ad33b4781f1a",
+            "default_route_table_id": "rtb-01d2eaa71a5439eb7",
+            "default_security_group_id": "sg-0ac6b90939a0dcf53",
             "dhcp_options_id": "dopt-01f28bcaa903e605a",
             "enable_dns_hostnames": true,
             "enable_dns_support": true,
             "enable_network_address_usage_metrics": false,
-            "id": "vpc-0d25956921df0e2e0",
+            "id": "vpc-01abcc6074471e6de",
             "instance_tenancy": "default",
             "ipv4_ipam_pool_id": null,
             "ipv4_netmask_length": null,
@@ -225,7 +178,7 @@
             "ipv6_cidr_block_network_border_group": "",
             "ipv6_ipam_pool_id": "",
             "ipv6_netmask_length": 0,
-            "main_route_table_id": "rtb-026317119d1d569b0",
+            "main_route_table_id": "rtb-01d2eaa71a5439eb7",
             "owner_id": "575108956505",
             "tags": {
               "Name": "testvpc1"
